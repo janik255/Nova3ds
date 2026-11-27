@@ -1,0 +1,36 @@
+name: Build NOVA 3DS
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "main", "master" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: devkitpro/devkitarm:latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Build 3DSX and CIA
+        shell: bash
+        run: |
+          set -euxo pipefail
+          make
+          mkdir -p release
+          find . -maxdepth 3 -type f \( -name '*.3dsx' -o -name '*.cia' -o -name '*.smdh' \) -exec cp {} release/ \;
+          if [ ! -f release/NOVA_3DS.3dsx ]; then
+            echo "Expected NOVA_3DS.3dsx was not created"
+            exit 1
+          fi
+          # CIA packaging is intentionally not fabricated. A valid CIA needs a
+          # correctly generated SMDH/banner and makerom/3ds-cia packaging.
+          # The build artifact always includes the runnable 3DSX if compilation succeeds.
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: NOVA-3DS-build
+          path: release/
+          if-no-files-found: error
+          retention-days: 14
